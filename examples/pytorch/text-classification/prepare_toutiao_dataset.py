@@ -49,7 +49,7 @@ def read_toutiao_whole_dataset(data_file_path):
     texts, labels = zip(*data_pairs)
     return texts, labels
 
-def split_train_val_test(texts, labels, output_dir, train_ratio=0.7, val_ratio=15, test_ratio=0.15):
+def split_train_val_test_txt(texts, labels, output_dir, train_ratio=0.7, val_ratio=15, test_ratio=0.15):
     num_all_data = len(labels)
     num_train = int(num_all_data * 0.7)
     num_val = int(num_all_data * 0.15)
@@ -63,20 +63,45 @@ def split_train_val_test(texts, labels, output_dir, train_ratio=0.7, val_ratio=1
     test_file_path = os.path.join(output_dir, 'test.txt')
 
     with open(train_file_path, 'w', encoding='utf-8') as train_file:
-        train_writer = csv.writer(train_file)
+        for idx in tqdm(range(0, num_train)):
+            train_file.write('%s_!_%d\n' % (texts[idx], labels[idx]))
+    
+    with open(val_file_path, 'w', encoding='utf-8') as val_file:
+        for idx in tqdm(range(num_train, num_train + num_val)):
+            val_file.write('%s_!_%d\n' % (texts[idx], labels[idx]))
 
+    with open(test_file_path, 'w', encoding='utf-8') as test_file:
+        for idx in tqdm(range(num_train + num_val, num_all_data)):
+            test_file.write('%s_!_%d\n' % (texts[idx], labels[idx]))
+
+def split_train_val_test(texts, labels, output_dir, train_ratio=0.7, val_ratio=15, test_ratio=0.15):
+    num_all_data = len(labels)
+    num_train = int(num_all_data * 0.7)
+    num_val = int(num_all_data * 0.15)
+    num_test = num_all_data - num_train - num_val
+
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    train_file_path = os.path.join(output_dir, 'train.csv')
+    val_file_path = os.path.join(output_dir, 'val.csv')
+    test_file_path = os.path.join(output_dir, 'test.csv')
+
+    with open(train_file_path, 'w', encoding='utf-8') as train_file:
+        train_writer = csv.writer(train_file)
+        train_writer.writerow(['sentence', 'label'])
         for idx in tqdm(range(0, num_train)):
             train_writer.writerow([texts[idx], labels[idx]])
     
     with open(val_file_path, 'w', encoding='utf-8') as val_file:
         val_writer = csv.writer(val_file)
-
+        val_writer.writerow(['sentence', 'label'])
         for idx in tqdm(range(num_train, num_train + num_val)):
             val_writer.writerow([texts[idx], labels[idx]])
 
     with open(test_file_path, 'w', encoding='utf-8') as test_file:
         test_writer = csv.writer(test_file)
-
+        test_writer.writerow(['sentence', 'label'])
         for idx in tqdm(range(num_train + num_val, num_all_data)):
             test_writer.writerow([texts[idx], labels[idx]])
 
@@ -84,32 +109,46 @@ def check_raw_dataset(dataset_path):
     if not os.path.exists(dataset_path):
         raise ValueError("dataset file %s does not exist!" % dataset_path)
 
+    with open(dataset_path, 'r', encoding='utf-8') as data_file:
+        csv_reader = csv.reader(data_file)
+        next(csv_reader)
+        for row in csv_reader:
+            if len(row) > 2:
+                print(row)
+                raise ValueError("csv row should not contain more than 2 elements")
+            
+            text = row[0]
+            label = int(row[1])
+            print(text, label)
+    
+def clean_raw_datasets(dataset_path):
+    if not os.path.exists(dataset_path):
+        raise ValueError("dataset file %s does not exist!" % dataset_path)
+
     output_dir = os.path.dirname(dataset_path)
     file_name = os.path.basename(dataset_path).split('.')[0]
-    checked_file_name = file_name + '_set.txt'
+    checked_file_name = file_name + '_set.csv'
     checked_file_path = os.path.join(output_dir, checked_file_name)
 
     checked_file = open(checked_file_path, 'w', encoding='utf-8')
-    with open(dataset_path, 'r', encoding='utf-8') as data_file:
-        csv_reader = csv.reader(data_file)
-        try:
-            for row in csv_reader:
-                if len(row) > 2:
-                    print(row)
-                    raise ValueError("csv row should not contain more than 2 elements")
-                text = row[0]
-                label = int(row[1])
-                # print(text, label)
-        except:
-            print(row)
+
+    with open(dataset_path, 'r') as data_file:
+        for line in data_file:
+            checked_file.write(line.replace('\x00', ''))
+
     checked_file.close()
 
 if __name__ == '__main__':
     file_path = sys.argv[1]
     output_dir = sys.argv[2]
-    # print('Load dataset from %s' % file_path)
-    # texts, labels = read_toutiao_whole_dataset(file_path)
 
-    # split_train_val_test(texts, labels, output_dir)
+    print('Load dataset from %s' % file_path)
+    texts, labels = read_toutiao_whole_dataset(file_path)
+    split_train_val_test(texts, labels, output_dir)
 
-    check_raw_dataset(os.path.join(output_dir, 'val.txt'))
+    clean_raw_datasets(os.path.join(output_dir, 'train.csv'))
+    clean_raw_datasets(os.path.join(output_dir, 'val.csv'))
+    clean_raw_datasets(os.path.join(output_dir, 'test.csv'))
+
+    check_raw_dataset(os.path.join(output_dir, 'train_set.csv'))
+

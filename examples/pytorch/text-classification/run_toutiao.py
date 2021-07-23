@@ -223,6 +223,22 @@ class ModelArguments:
         },
     )
 
+def read_toutiao_data(data_file_path):
+    if not os.path.exists(data_file_path):
+        raise ValueError("dataset file %s does not exist!" % data_file_path)
+
+    with open(data_file_path, 'r', encoding='utf-8') as data_file:
+        texts = []
+        labels = []
+        lines = data_file.readlines()
+        for line in lines:
+            line_split = line.split('_!_')
+            text = line_split[0]
+            label = int(line_split[1])
+            texts.append(text)
+            labels.append(label)
+    return texts, labels
+
 
 class ToutiaoDataset(torch.utils.data.Dataset):
     def __init__(self, encodings, labels):
@@ -325,7 +341,7 @@ def main():
     else:
         # Loading a dataset from your local files.
         # CSV/JSON training and evaluation files are needed.
-        data_files = {"train": data_args.train_file, "validation": data_args.validation_file}
+        data_files = {"train": data_args.train_file, "validation": data_args.validation_file, "test": data_args.test_file}
 
         # Get the test dataset: you can provide your own CSV/JSON test file (see below)
         # when you use `do_predict` without specifying a GLUE benchmark task.
